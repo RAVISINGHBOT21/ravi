@@ -228,7 +228,6 @@ random_replies = [
 ]
 
 # ✅ CALLBACK HANDLER FOR HELP BUTTON
-@bot.callback_query_handlerx Time (Editable via /maxtime)
 MAX_TIME_ATTACK = 100  # Default Max Time for /attack
 MAX_TIME_BGMI = 240  # Default Max Time for /bgmi
 
@@ -763,12 +762,7 @@ def my_info(message):
 👤 **User Info:**
 🆔 **User ID:** `{user_id}`
 🔹 **Username:** `{username}`
-👑 **Admin:** {is_admin}
-🎟 **Access:** {has_access}
-
-🔑 **Key Details:**
-🔹 **Key:** `{user_key}`
-📅 **Expiry:** `{expiry_text}`
+...
 """
     bot.reply_to(message, info_text, parse_mode="Markdown")
 
