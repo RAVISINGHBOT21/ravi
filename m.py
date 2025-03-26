@@ -345,15 +345,15 @@ def redeem_key(message):
 
     bot.reply_to(message, f"🎉 ACCESS GRANTED!\n👤 **User:** `{user_name}`\n🆔 **User ID:** `{user_id}`\n🔑 **Key:** `{key}`\n📅 **Expires On:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S IST')}`", parse_mode="Markdown")
 
-## ✅ /RS Attack Command (Auto-Remove from /stats)
+# ✅ /RS Attack Command (Auto-Remove from /stats)
 @bot.message_handler(commands=['bgmi'])
 def handle_attack(message):
     user_id = str(message.from_user.id)
     chat_id = str(message.chat.id)
 
     # ✅ यह चेक करेगा कि कमांड सिर्फ ग्रुप में चले
-    if chat_id != int(GROUP_ID):  
-        bot.reply_to(message, "❌ इस कमांड का इस्तेमाल सिर्फ ग्रुप में किया जा सकता है!")
+    if message.chat.id != int(GROUP_ID):
+        bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
         return
 
     if not is_user_allowed(user_id):  
