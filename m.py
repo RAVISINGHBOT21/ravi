@@ -400,7 +400,7 @@ def handle_vip_attack(message):
     user_id = str(message.from_user.id)
 
     # ✅ पहले चेक करें कि यूज़र ने Key रिडीम की है और VIP है या नहीं  
-    if not is_user_vip(user_id):
+    if not is_user_allowed(user_id):
         bot.reply_to(message, "❌ **PEHLE VIP KEY REDEEM KARO, TABHI ATTACK KAR SAKTE HO!**")
         return
 
