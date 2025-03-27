@@ -13,10 +13,10 @@ import logging
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # ✅ FIXED IMPORT ERROR
 
 # ✅ TELEGRAM BOT TOKEN
-bot = telebot.TeleBot('7733619497:AAFwoK9dwZpGIjzrwGu5Yh_ojC3FrWqgYvQ')
+bot = telebot.TeleBot('7053228704:AAF6whw5eBZ8bspvKNYgV1pqsVoYealO6qY')
 
 # ✅ GROUP AND ADMIN DETAILS
-GROUP_ID = "-1002252633433, -1002369239894, -1001855389923"
+GROUP_ID = "-1002369239894"
 ADMINS = ["7129010361"]
 
 SCREENSHOT_CHANNEL = "@KHAPITAR_BALAK77"
@@ -398,6 +398,11 @@ def handle_attack(message):
 @bot.message_handler(commands=['bgmi'])
 def handle_vip_attack(message):
     user_id = str(message.from_user.id)
+
+    # ✅ सिर्फ ग्रुप में काम करेगा  
+    if str(message.chat.id) != GROUP_ID:
+        bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
+        return
 
     # ✅ पहले चेक करें कि यूज़र ने Key रिडीम की है और VIP है या नहीं  
     if not is_user_allowed(user_id):
