@@ -3,8 +3,8 @@ import threading
 
 # ✅ VPS LIST (IP, Username, Password)
 VPS_LIST = [
-    {"host": "167.99.120.129", "user": "master_gyqdyxpuzc", "password": "yJcKAy23DgUh"},
-    {"host": "108.61.89.124", "user": "master_rpfumfsfsr", "password": "TbZ9dg9epr7z"},
+    {"host": "108.61.56.233", "user": "master_btnseqznzz", "password": "MWmS6WWFNsRD"},
+    {"host": "149.28.56.244", "user": "master_gpptjdzrxk", "password": "KfdF6NJb5FqA"}
 ]
 
 # ✅ Function to send attack command to a VPS
