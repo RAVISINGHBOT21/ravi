@@ -13,9 +13,9 @@ import logging
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # ✅ FIXED IMPORT ERROR
 
 # ✅ TELEGRAM BOT TOKEN
-bot = telebot.TeleBot('7733619497:AAFwoK9dwZpGIjzrwGu5Yh_ojC3FrWqgYvQ')
+bot = telebot.TeleBot('7053228704:AAGLAJFlzJ6M2XZC9HEABD6B5PVubnd-FqY')
 
-GROUP_ID = "-1002252633433"
+GROUP_ID = "-1002369239894"
 ADMINS = ["7129010361"]
 ADMINS = [7129010361]
 MAX_ATTACKS = 3
