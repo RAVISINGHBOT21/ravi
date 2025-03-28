@@ -1,3 +1,7 @@
+def is_user_in_channel(user_id):
+    # Placeholder function to check if user is in the channel
+    return True  # Modify logic as per requirement
+
 #!/usr/bin/python3
 import telebot
 import time
@@ -18,6 +22,7 @@ bot = telebot.TeleBot('7733619497:AAFwoK9dwZpGIjzrwGu5Yh_ojC3FrWqgYvQ')
 # ✅ GROUP AND ADMIN DETAILS
 GROUP_ID = "-1002252633433"
 ADMINS = ["7129010361"]
+ADMINS = [7129010361]
 
 SCREENSHOT_CHANNEL = "@KHAPITAR_BALAK77"
 
@@ -711,9 +716,6 @@ def restart_bot(message):
         subprocess.run("python3 m.py", shell=True)
     else:
         bot.reply_to(message, "🚫 SIRF ADMIN HI RESTART KAR SAKTA HAI!")
-
-# ✅ START POLLING
-bot.polling(none_stop=True)
 
 # ✅ /CHECK Command (List Active Keys)
 @bot.message_handler(commands=['keylist'])
