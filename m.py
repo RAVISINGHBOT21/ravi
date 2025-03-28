@@ -1,3 +1,4 @@
+pending_verification = {}
 def is_user_in_channel(user_id):
     # Placeholder function to check if user is in the channel
     return True  # Modify logic as per requirement
@@ -370,9 +371,7 @@ def handle_attack(message):
         return
 
     # ✅ अटैक लिमिट चेक करो
-       MAX_ATTACKS = 2  # अधिकतम 2 अटैक्स की अनुमति
-
-        user_active_attacks = sum(1 for uid in active_attacks.keys() if uid == user_id)
+    MAX_ATTACKS = 2  # अधिकतम 2 अटैक्स की अनुमति
 
     if user_active_attacks >= MAX_ATTACKS:
         bot.reply_to(message, f"⚠️ **ATTACK LIMIT ({MAX_ATTACKS}) POORI HO CHUKI HAI!**\n👉 **PEHLE PURANE KHATAM HONE DO! /check KARO!**")
