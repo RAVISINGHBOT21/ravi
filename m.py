@@ -13,10 +13,10 @@ import logging
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # ✅ FIXED IMPORT ERROR
 
 # ✅ TELEGRAM BOT TOKEN
-bot = telebot.TeleBot('7733619497:AAFwoK9dwZpGIjzrwGu5Yh_ojC3FrWqgYvQ')
+bot = telebot.TeleBot('7053228704:AAGLAJFlzJ6M2XZC9HEABD6B5PVubnd-FqY')
 
 # ✅ GROUP AND ADMIN DETAILS
-GROUP_ID = "-1002252633433"
+GROUP_ID = "-1002369239894"
 ADMINS = ["7129010361"]
 
 SCREENSHOT_CHANNEL = "@KHAPITAR_BALAK77"
@@ -247,20 +247,6 @@ def remove_existing_key(message):
         bot.reply_to(message, "✅ KEY REMOVED SUCCESSFULLY!")
     else:
         bot.reply_to(message, "❌ KEY NOT FOUND!")
-
-# ✅ FIXED: SCREENSHOT SYSTEM (Now Always Forwards)
-@bot.message_handler(content_types=['photo'])
-def handle_screenshot(message):
-    user_id = message.from_user.id
-
-    caption_text = f"📸 **USER SCREENSHOT RECEIVED!**\n👤 **User ID:** `{user_id}`\n✅ **Forwarded to Admins!**"
-    file_id = message.photo[-1].file_id
-    bot.send_photo(SCREENSHOT_CHANNEL, file_id, caption=caption_text, parse_mode="Markdown")
-    
-    bot.reply_to(message, "✅ SCREENSHOT FORWARDED SUCCESSFULLY!")
-
-# ✅ Active Attacks को Track करने वाला Dictionary  
-active_attacks = {}
 
 # ✅ /MULTIUSERKEY Command (Admin Only)
 @bot.message_handler(commands=['multiuserkey'])
@@ -649,7 +635,8 @@ def attack_stats(message):
 # ✅ ADMIN RESTART COMMAND
 @bot.message_handler(commands=['restart'])
 def restart_bot(message):
-    if message.from_user.id in ADMINS:
+    if str(message.from_user.id) not in ADMINS:
+        bot.reply_to(message, "❌ ADMIN ONLY COMMAND!")
         bot.send_message(message.chat.id, "♻️ BOT RESTART HO RAHA HAI...")
         time.sleep(1)
         subprocess.run("python3 m.py", shell=True)
